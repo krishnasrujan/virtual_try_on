@@ -1,5 +1,4 @@
 import hashlib
-from datetime import datetime
 
 class Utils:
 
@@ -8,3 +7,7 @@ class Utils:
         # Create a hash of the combined string for a shorter unique ID
         unique_id = hashlib.md5(unique_string.encode()).hexdigest()
         return unique_id
+
+
+class MyCustomError(Exception):  # Correct
+    pass

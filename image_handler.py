@@ -6,6 +6,7 @@ import requests
 from datetime import datetime
 from dotenv import load_dotenv
 from constants import DirectoryPath, TokensAndURLs
+from utils import MyCustomError
 
 # Load environment variables from .env file
 load_dotenv()
@@ -36,7 +37,6 @@ class UserMetadataManager:
 
     def save_metadata(self):
         """Save metadata to a JSON file."""
-        print('saving the metadata:', self.input_metadata)
         with open(self.metadata_file, "w") as file:
             json.dump(self.input_metadata, file, indent=4)
 
@@ -89,7 +89,7 @@ class ImageManager:
                     if response.status_code == 200:
                         break
                 except requests.RequestException as e:
-                    print(f"Attempt {retry_count + 1} failed with error: {e}")
+                    pass
                 retry_count += 1
 
             if response and response.status_code == 200:
@@ -100,12 +100,11 @@ class ImageManager:
                 self.metadata_manager.add_image_metadata(
                     media_url, filepath, image_type
                 )
-                print("Image downloaded at:", filepath)
                 return filepath
             else:
-                raise f"Failed to download the image for the user: {self.user_id}"
+                raise MyCustomError(f"Failed to download the image for the user: {self.user_id}")
         except Exception as e:
-            logger.log(f"Got an error while downloading the image. Media URL: "
+            logger.log(level=logging.ERROR, msg=f"Got an error while downloading the image. Media URL: "
                   f"[{media_url}] Image Type: [{image_type}] Error: [{e}]")
             raise e
 
@@ -127,7 +126,6 @@ class ImageManager:
                 directory, original_filename = os.path.split(latest_image["image_location"])
                 new_filename = f"{self.user_id}_{new_image_type}_{datetime.now().isoformat()}.png"
                 new_filepath = os.path.join(directory, new_filename)
-                print("inside renaming the image:", latest_image["image_location"], new_filepath)
 
                 # Rename file and update metadata
                 os.rename(latest_image["image_location"], new_filepath)
@@ -138,9 +136,9 @@ class ImageManager:
                 self.metadata_manager.save_metadata()
                 return new_filepath
             else:
-                raise "No unused image found with the specified type."
+                raise MyCustomError("No unused image found with the specified type.")
         except Exception as e:
-            logger.log(f"Got an error while renaming the image. Media URL: "
+            logger.log(level=logging.ERROR, msg=f"Got an error while renaming the image. Media URL: "
                   f"[{media_url}] Error: [{e}]")
             raise e
 
@@ -153,7 +151,7 @@ class ImageManager:
             if entry["image_type"] == image_type and not entry["already_used"]:
                 self.metadata_manager.mark_image_as_used(i)
                 return entry["media_url"] if get_url else entry["image_location"]
-        raise f"No unused {image_type} image found for user {self.user_id}."
+        raise MyCustomError(f"No unused {image_type} image found for user {self.user_id}.")
 
     def has_unused_image(self, image_type="garment"):
         """Check if there is an unused image of a specific type."""

@@ -81,7 +81,8 @@ class VirtualTryOn:
             return output_path
         except Exception as e:
             logger.log(
-                f"Got an error while generating the output image. "
+                level=logging.ERROR,
+                msg=f"Got an error while generating the output image. "
                 f"User: {self.user_id} Error: [{e}]"
             )
             raise e
@@ -122,7 +123,8 @@ class VirtualTryOn:
                 return output_path
         except Exception as e:
             logger.log(
-                f"Got an error while generating the output image. "
+                level=logging.ERROR,
+                msg=f"Got an error while generating the output image. "
                 f"User: {self.user_id} Error: [{e}]"
             )
             raise e

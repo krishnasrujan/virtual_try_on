@@ -32,7 +32,7 @@ def get_image(image_name: str):
         else:
             raise "Image not found"
     except Exception as e:
-        logger.log(f"Did not find the output image. Error : {e}")
+        logger.log(level=logging.ERROR, msg=f"Did not find the output image. Error : {e}")
         return {"error": "Image not found"}, 404
 
 
@@ -60,10 +60,8 @@ def webhook(
             image_type = "garment"
         elif 'person' in message_body:
             image_type = "person"
-        print("image_type: ", image_type)
         # Case 1: Image and type provided together
         if NumMedia > 0 and MediaUrl0 and image_type:
-            print("inside case 1")
             try:
                 image_manager_obj.download_image(MediaUrl0, image_type)
                 output_response = f"Got your {image_type} image."
@@ -71,26 +69,23 @@ def webhook(
                     output_response += " Also, please provide the person image."
                 elif image_type == "person" and not image_manager_obj.has_unused_image("garment"):
                     output_response += " Also, please provide the garment image."
-                print(output_response)
             except Exception as e:
-                logger.error(f"Error downloading image: {e}")
+                logger.log(level=logging.ERROR, msg=f"Error downloading image: {e}")
                 output_response = "Failed to process the image. Please try again."
                 response.message(output_response)
 
         # Case 2: Only image provided, no type specified
         elif NumMedia > 0 and MediaUrl0:
-            print("inside case 2")
             try:
                 image_manager_obj.download_image(MediaUrl0, None)
                 output_response = "Please specify the image type for the uploaded image."
             except Exception as e:
-                logger.error(f"Error downloading image without type: {e}")
+                logger.log(msg=f"Error downloading image without type: {e}")
                 output_response = "Failed to process the image. Please try again."
                 response.message(output_response)
 
         # Case 3: Type specified but no image provided
         elif image_type and NumMedia == 0:
-            print("inside case 3")
             try:
                 if not image_manager_obj.has_unused_image(None):
                     output_response = f"""Please send the {image_type} image to proceed."""
@@ -104,19 +99,17 @@ def webhook(
                     elif image_type == "person" and not image_manager_obj.has_unused_image("garment"):
                         output_response = "Also, please provide the garment image."
                     else:
-                        raise
+                        pass
             except Exception as e:
-                logger.error(f"Error processing image type without image: {e}")
+                logger.log(level=logging.ERROR, msg=f"Error processing image type without image: {e}")
                 output_response = "Failed to process your request. Please try again."
                 response.message(output_response)
         # Case 4: No valid image or type information provided
         else:
-            print("inside case 4")
             output_response = "Please provide an image along with its type (garment or person) to use the virtual try-on service."
             response.message(output_response)
 
         if image_manager_obj.has_unused_image("garment") and image_manager_obj.has_unused_image("person"):
-            print('generating the final output')
             virtual_try_on_obj = VirtualTryOn(user_id=from_number)
             # Both images are available, process the virtual try-on
             file_path = virtual_try_on_obj.process_try_on()
@@ -127,11 +120,9 @@ def webhook(
         else:
             response.message(output_response)
         ChatHistoryManager.update_chat_history(from_number, {"bot_response": output_response})
-        print(response)
         return Response(content=str(response), media_type="application/xml")
-
     except Exception as e:
-        logger.error(f"Unexpected error in webhook handler: {e}")
+        logger.log(level=logging.ERROR, msg=f"Unexpected error in webhook handler: {e}")
         output_response = "An error occurred while processing your request. Please try again later."
         response.message(output_response)
         ChatHistoryManager.update_chat_history(from_number, {"bot_response": output_response})
