@@ -12,7 +12,6 @@ load_dotenv()
 twilio_account_id = os.getenv("TWILIO_ACCOUNT_ID")
 twilio_auth_token = os.getenv("TWILIO_AUTH_TOKEN")
 
-
 os.makedirs(DirectoryPath.INPUT_DIR.value, exist_ok=True)
 os.makedirs(DirectoryPath.INPUT_METADATA_DIR.value, exist_ok=True)
 
