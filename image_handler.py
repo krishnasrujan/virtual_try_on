@@ -1,3 +1,4 @@
+import logging
 import os
 import json
 import requests
@@ -5,7 +6,6 @@ import requests
 from datetime import datetime
 from dotenv import load_dotenv
 from constants import DirectoryPath, TokensAndURLs
-from virtual_try_on import logger
 
 # Load environment variables from .env file
 load_dotenv()
@@ -14,6 +14,9 @@ twilio_auth_token = os.getenv("TWILIO_AUTH_TOKEN")
 
 os.makedirs(DirectoryPath.INPUT_DIR.value, exist_ok=True)
 os.makedirs(DirectoryPath.INPUT_METADATA_DIR.value, exist_ok=True)
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 class UserMetadataManager:
