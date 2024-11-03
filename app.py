@@ -72,7 +72,6 @@ def webhook(
             except Exception as e:
                 logger.log(level=logging.ERROR, msg=f"Error downloading image: {e}")
                 output_response = "Failed to process the image. Please try again."
-                response.message(output_response)
 
         # Case 2: Only image provided, no type specified
         elif NumMedia > 0 and MediaUrl0:
@@ -82,7 +81,6 @@ def webhook(
             except Exception as e:
                 logger.log(msg=f"Error downloading image without type: {e}")
                 output_response = "Failed to process the image. Please try again."
-                response.message(output_response)
 
         # Case 3: Type specified but no image provided
         elif image_type and NumMedia == 0:
@@ -103,11 +101,9 @@ def webhook(
             except Exception as e:
                 logger.log(level=logging.ERROR, msg=f"Error processing image type without image: {e}")
                 output_response = "Failed to process your request. Please try again."
-                response.message(output_response)
         # Case 4: No valid image or type information provided
         else:
             output_response = "Please provide an image along with its type (garment or person) to use the virtual try-on service."
-            response.message(output_response)
 
         if image_manager_obj.has_unused_image("garment") and image_manager_obj.has_unused_image("person"):
             virtual_try_on_obj = VirtualTryOn(user_id=from_number)

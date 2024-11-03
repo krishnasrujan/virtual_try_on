@@ -1,0 +1,10 @@
+services:
+  web:
+    build: .
+    command: python app.py
+    ports:
+      - "8000:8000"
+    environment:
+      - PORT=8000
+      - TWILIO_ACCOUNT_ID=${TWILIO_ACCOUNT_ID}
+      - TWILIO_AUTH_TOKEN=${TWILIO_AUTH_TOKEN}
