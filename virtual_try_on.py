@@ -1,3 +1,4 @@
+import logging
 import os
 import json
 import requests
@@ -10,13 +11,15 @@ from image_handler import ImageManager
 from constants import DirectoryPath, TokensAndURLs
 from utils import Utils
 
-
 os.makedirs(DirectoryPath.OUTPUT_METADATA_DIR.value, exist_ok=True)
 
 # Headers for the API request
 headers = {
     "Authorization": f"Bearer {TokensAndURLs.HUGGING_FACE_API_TOKEN}"
 }
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 class VirtualTryOn:
@@ -75,47 +78,54 @@ class VirtualTryOn:
                 "output_image": output_path
             }
             self.save_metadata(metadata)
-            print("Try-on result saved at:", output_path)
             return output_path
         except Exception as e:
-            print(f"Failed to process the image.Message: {e}")
-            return None
+            logger.log(
+                f"Got an error while generating the output image. "
+                f"User: {self.user_id} Error: [{e}]"
+            )
+            raise e
 
     def process_try_on_orig(self):
-        # Fetch input images
-        person_media_url = self.image_manager_obj.fetch_latest_unused_image(
-            "person", get_url=True
-        )
-        garment_media_url = self.image_manager_obj.fetch_latest_unused_image(
-            "garment", get_url=True
-        )
+        try:
+            # Fetch input images
+            person_media_url = self.image_manager_obj.fetch_latest_unused_image(
+                "person", get_url=True
+            )
+            garment_media_url = self.image_manager_obj.fetch_latest_unused_image(
+                "garment", get_url=True
+            )
 
-        # Predict try-on result
-        media_url, seed, response = self.client.predict(
-            person_img=handle_file(person_media_url),
-            garment_img=handle_file(garment_media_url),
-            seed=0,
-            randomize_seed=True,
-            api_name="/tryon"
-        )
+            # Predict try-on result
+            media_url, seed, response = self.client.predict(
+                person_img=handle_file(person_media_url),
+                garment_img=handle_file(garment_media_url),
+                seed=0,
+                randomize_seed=True,
+                api_name="/tryon"
+            )
 
-        # Check if API response is successful
-        if response.status_code == 200:
-            output_path = self.get_output_path()
-            image = requests.get(media_url)
-            with open(output_path, "wb") as output_file:
-                output_file.write(image.content)
+            # Check if API response is successful
+            if response.status_code == 200:
+                output_path = self.get_output_path()
+                image = requests.get(media_url)
+                with open(output_path, "wb") as output_file:
+                    output_file.write(image.content)
 
-            # Save metadata
-            metadata = {
-                "person_image": person_media_url,
-                "garment_image": garment_media_url,
-                "output_image": output_path
-            }
-            self.save_metadata(metadata)
-            print("Try-on result saved at:", output_path)
-        else:
-            print(f"Failed to process the image. Status code: {response.status_code}, Message: {response.text}")
+                # Save metadata
+                metadata = {
+                    "person_image": person_media_url,
+                    "garment_image": garment_media_url,
+                    "output_image": output_path
+                }
+                self.save_metadata(metadata)
+                return output_path
+        except Exception as e:
+            logger.log(
+                f"Got an error while generating the output image. "
+                f"User: {self.user_id} Error: [{e}]"
+            )
+            raise e
 
 
 # Example usage

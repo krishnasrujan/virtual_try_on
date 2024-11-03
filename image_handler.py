@@ -1,11 +1,17 @@
 import os
 import json
-from importlib.metadata import metadata
-
 import requests
 
 from datetime import datetime
+from dotenv import load_dotenv
 from constants import DirectoryPath, TokensAndURLs
+from virtual_try_on import logger
+
+# Load environment variables from .env file
+load_dotenv()
+twilio_account_id = os.getenv("TWILIO_ACCOUNT_ID")
+twilio_auth_token = os.getenv("TWILIO_AUTH_TOKEN")
+
 
 os.makedirs(DirectoryPath.INPUT_DIR.value, exist_ok=True)
 os.makedirs(DirectoryPath.INPUT_METADATA_DIR.value, exist_ok=True)
@@ -44,7 +50,6 @@ class UserMetadataManager:
         self.input_metadata = metadata
         self.save_metadata()
 
-
     def find_latest_unused_image(self, image_type):
         metadata = self.load_input_metadata()
         """Find and return the latest unused image metadata of a specific type."""
@@ -76,7 +81,7 @@ class ImageManager:
                 try:
                     response = requests.get(
                         media_url,
-                        auth=('AC86de71cd8fe477c972b6229c683628fa', 'f78ea648dcbcbabe6ee2fb852983c1ce'),
+                        auth=(twilio_account_id, twilio_auth_token),
                         timeout=30
                     )
                     if response.status_code == 200:
@@ -98,10 +103,9 @@ class ImageManager:
             else:
                 raise f"Failed to download the image for the user: {self.user_id}"
         except Exception as e:
-            print(f"Got an error while downloading the image. Media URL: "
-                  f"[{media_url}] Image Type: [{image_type}] Error: [{e}]"
-                  )
-            return None
+            logger.log(f"Got an error while downloading the image. Media URL: "
+                  f"[{media_url}] Image Type: [{image_type}] Error: [{e}]")
+            raise e
 
 
     def rename_image(self, old_image_type=None, new_image_type="garment"):
@@ -132,30 +136,22 @@ class ImageManager:
                 self.metadata_manager.save_metadata()
                 return new_filepath
             else:
-                print("No unused image found with the specified type.")
-                return None
+                raise "No unused image found with the specified type."
         except Exception as e:
-            print(f"Got an error while renaming the image. Media URL: "
-                  f"[{media_url}] Error: [{e}]"
-                  )
-            return None
+            logger.log(f"Got an error while renaming the image. Media URL: "
+                  f"[{media_url}] Error: [{e}]")
+            raise e
 
 
     def fetch_latest_unused_image(self, image_type="garment", get_url=True):
         """Fetch the latest unused image of a specific type, returning its location or URL."""
         metadata = self.metadata_manager.load_input_metadata()
-        print('metadata while fetching the unused images:', metadata)
         for i in range(len(metadata) - 1, -1, -1):
             entry = metadata[i]
             if entry["image_type"] == image_type and not entry["already_used"]:
-                # Mark image as used
                 self.metadata_manager.mark_image_as_used(i)
-
-                # Return the requested location or URL
                 return entry["media_url"] if get_url else entry["image_location"]
-
-        print(f"No unused {image_type} image found for user {self.user_id}.")
-        return None
+        raise f"No unused {image_type} image found for user {self.user_id}."
 
     def has_unused_image(self, image_type="garment"):
         """Check if there is an unused image of a specific type."""
