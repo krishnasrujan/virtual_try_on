@@ -1,3 +1,5 @@
+import base64
+import cv2
 import logging
 import os
 import json
@@ -5,18 +7,11 @@ import requests
 import shutil
 
 from datetime import datetime
-from gradio_client import Client, handle_file
+from gradio_client import Client, file
 
 from image_handler import ImageManager
 from constants import DirectoryPath, TokensAndURLs
 from utils import Utils
-
-os.makedirs(DirectoryPath.OUTPUT_METADATA_DIR.value, exist_ok=True)
-
-# Headers for the API request
-headers = {
-    "Authorization": f"Bearer {TokensAndURLs.HUGGING_FACE_API_TOKEN}"
-}
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -24,12 +19,21 @@ logger = logging.getLogger(__name__)
 
 class VirtualTryOn:
     def __init__(self, user_id):
-        # self.client = Client(MODEL_NAME)
+        self.client_1 = Client(
+            TokensAndURLs.MODEL_NAME.value,
+            hf_token=TokensAndURLs.HUGGING_FACE_API_TOKEN.value
+        )
+        self.client_2 = Client(
+            "Nymbo/Virtual-Try-On",
+            hf_token=TokensAndURLs.HUGGING_FACE_API_TOKEN.value
+        )
+        # self.client = Client("Nymbo/Virtual-Try-On")
         self.output_dir = DirectoryPath.OUTPUT_DIR.value
         self.output_metadata_dir = DirectoryPath.OUTPUT_METADATA_DIR.value
         self.user_id = user_id
         self.image_manager_obj = ImageManager(user_id)
         os.makedirs(self.output_dir, exist_ok=True)
+        pass
 
     def get_output_path(self):
         unique_id = Utils.generate_unique_id(
@@ -58,52 +62,22 @@ class VirtualTryOn:
         """Copy an image from src_path to dest_path."""
         shutil.copy2(src_path, dest_path)
 
-    def process_try_on(self):
-        # Fetch input images
-        try:
-            person_image_path = self.image_manager_obj.fetch_latest_unused_image(
-                "person", get_url=False
-            )
-            garment_image_path = self.image_manager_obj.fetch_latest_unused_image(
-                "garment", get_url=False
-            )
-
-            output_path = self.get_output_path()
-            self.copy_image(person_image_path, output_path)
-
-            # Save metadata
-            metadata = {
-                "person_image": person_image_path,
-                "garment_image": garment_image_path,
-                "output_image": output_path
-            }
-            self.save_metadata(metadata)
-            return output_path
-        except Exception as e:
-            logger.log(
-                level=logging.ERROR,
-                msg=f"Got an error while generating the output image. "
-                f"User: {self.user_id} Error: [{e}]"
-            )
-            raise e
-
-    def process_try_on_orig(self):
+    def process_try_on_1(self):
         try:
             # Fetch input images
             person_media_url = self.image_manager_obj.fetch_latest_unused_image(
-                "person", get_url=True
+                "person", get_url=False
             )
             garment_media_url = self.image_manager_obj.fetch_latest_unused_image(
-                "garment", get_url=True
+                "garment", get_url=False
             )
 
             # Predict try-on result
-            media_url, seed, response = self.client.predict(
-                person_img=handle_file(person_media_url),
-                garment_img=handle_file(garment_media_url),
-                seed=0,
-                randomize_seed=True,
-                api_name="/tryon"
+            media_url, seed, response = self.client_1.predict(
+                person_img=person_media_url,
+                garment_img=garment_media_url,
+                seed=1,
+                randomize_seed=True
             )
 
             # Check if API response is successful
@@ -129,8 +103,95 @@ class VirtualTryOn:
             )
             raise e
 
+    def process_try_on_2(self):
+        try:
+            # Fetch input images
+            person_media_path = self.image_manager_obj.fetch_latest_unused_image(
+                "person", get_url=False
+            )
+            garment_media_path = self.image_manager_obj.fetch_latest_unused_image(
+                "garment", get_url=False
+            )
 
-# Example usage
-if __name__ == "__main__":
-    try_on = VirtualTryOn(user_id="srujan")
-    try_on.process_try_on()
+            # Predict try-on result
+            media_url, seed, response = self.client_2.predict(
+                dict={"background": file(person_media_path), "layers": [], "composite": None},
+                garm_img=file(garment_media_path),
+                garment_des="Sample garment description",
+                api_name="/tryon"
+            )
+
+            # Check if API response is successful
+            if response.status_code == 200:
+                output_path = self.get_output_path()
+                image = requests.get(media_url)
+                with open(output_path, "wb") as output_file:
+                    output_file.write(image.content)
+
+                # Save metadata
+                metadata = {
+                    "person_image": person_media_path,
+                    "garment_image": garment_media_path,
+                    "output_image": output_path
+                }
+                self.save_metadata(metadata)
+                return output_path
+        except Exception as e:
+            logger.log(
+                level=logging.ERROR,
+                msg=f"Got an error while generating the output image. "
+                f"User: {self.user_id} Error: [{e}]"
+            )
+            raise e
+
+    def process_try_on_by_hf(self):
+        try:
+            # Fetch input images
+            person_media_url = self.image_manager_obj.fetch_latest_unused_image(
+                "person", get_url=False
+            )
+            garment_media_url = self.image_manager_obj.fetch_latest_unused_image(
+                "garment", get_url=False
+            )
+            person_img = cv2.imread(person_media_url)
+            garment_img = cv2.imread(garment_media_url)
+            encoded_person_img = cv2.imencode('.png', cv2.cvtColor(person_img, cv2.COLOR_RGB2BGR))[1].tobytes()
+            encoded_person_img = base64.b64encode(encoded_person_img).decode('utf-8')
+            encoded_garment_img = cv2.imencode('.png', cv2.cvtColor(garment_img, cv2.COLOR_RGB2BGR))[1].tobytes()
+            encoded_garment_img = base64.b64encode(encoded_garment_img).decode('utf-8')
+
+            data = {
+                "humanImage": encoded_person_img,
+                "clothImage": encoded_garment_img,
+                "seed": 0
+            }
+            headers = {
+                "Authorization": f"Bearer {TokensAndURLs.HUGGING_FACE_API_TOKEN.value}"
+            }
+
+            response = requests.post(
+                url=f"https://api-inference.huggingface.co/models/{TokensAndURLs.MODEL_NAME.value}/tryon/" + "Submit",
+                headers=headers,
+                data=json.dumps(data),
+                timeout=50
+            )
+            if response.status_code == 200:
+                result = response.json()['result']
+                media_url = response.json().get("media_url")
+                seed = response.json().get("seed")
+                print(result)
+                print("Media URL:", media_url)
+                print("Seed:", seed)
+                output_path = self.get_output_path()
+                image = requests.get(media_url)
+                with open(output_path, "wb") as output_file:
+                    output_file.write(image.content)
+                return output_path
+
+        except Exception as e:
+            logger.log(
+                level=logging.ERROR,
+                msg=f"Got an error while generating the output image. "
+                    f"User: {self.user_id} Error: [{e}]"
+            )
+            raise e
