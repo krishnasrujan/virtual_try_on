@@ -4,11 +4,10 @@ import json
 import shutil
 
 from datetime import datetime
-from gradio_client import Client
 from PIL import Image
 
 from image_handler import ImageManager
-from constants import DirectoryPath, TokensAndURLs
+from constants import DirectoryPath
 from utils import Utils
 
 logging.basicConfig(level=logging.INFO)
@@ -17,15 +16,6 @@ logger = logging.getLogger(__name__)
 
 class MergeImages:
     def __init__(self, user_id):
-        self.client_1 = Client(
-            TokensAndURLs.MODEL_NAME.value,
-            hf_token=TokensAndURLs.HUGGING_FACE_API_TOKEN.value
-        )
-        self.client_2 = Client(
-            "Nymbo/Virtual-Try-On",
-            hf_token=TokensAndURLs.HUGGING_FACE_API_TOKEN.value
-        )
-        # self.client = Client("Nymbo/Virtual-Try-On")
         self.output_dir = DirectoryPath.OUTPUT_DIR.value
         self.output_metadata_dir = DirectoryPath.OUTPUT_METADATA_DIR.value
         self.user_id = user_id
@@ -80,8 +70,7 @@ class MergeImages:
             combined_image.paste(garment_image, (person_image.width, 0))
 
             output_path = self.get_output_path()
-            with open(output_path, "wb") as output_file:
-                output_file.write(combined_image.content)
+            combined_image.save(output_path)
 
             # Save metadata
             metadata = {

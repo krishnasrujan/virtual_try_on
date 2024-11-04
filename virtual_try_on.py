@@ -16,16 +16,17 @@ from utils import Utils
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+HUGGING_FACE_API_TOKEN = os.getenv("HF_API_TOKEN")
 
 class VirtualTryOn:
     def __init__(self, user_id):
         self.client_1 = Client(
             TokensAndURLs.MODEL_NAME.value,
-            hf_token=TokensAndURLs.HUGGING_FACE_API_TOKEN.value
+            hf_token=HUGGING_FACE_API_TOKEN
         )
         self.client_2 = Client(
             "Nymbo/Virtual-Try-On",
-            hf_token=TokensAndURLs.HUGGING_FACE_API_TOKEN.value
+            hf_token=HUGGING_FACE_API_TOKEN
         )
         # self.client = Client("Nymbo/Virtual-Try-On")
         self.output_dir = DirectoryPath.OUTPUT_DIR.value
