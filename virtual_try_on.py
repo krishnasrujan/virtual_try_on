@@ -1,5 +1,5 @@
-import base64
-import cv2
+# import base64
+# import cv2
 import logging
 import os
 import json
@@ -65,17 +65,17 @@ class VirtualTryOn:
     def process_try_on_1(self):
         try:
             # Fetch input images
-            person_media_url = self.image_manager_obj.fetch_latest_unused_image(
+            person_media_path = self.image_manager_obj.fetch_latest_unused_image(
                 "person", get_url=False
             )
-            garment_media_url = self.image_manager_obj.fetch_latest_unused_image(
+            garment_media_path = self.image_manager_obj.fetch_latest_unused_image(
                 "garment", get_url=False
             )
 
             # Predict try-on result
             media_url, seed, response = self.client_1.predict(
-                person_img=person_media_url,
-                garment_img=garment_media_url,
+                person_img=person_media_path,
+                garment_img=garment_media_path,
                 seed=1,
                 randomize_seed=True
             )
@@ -89,8 +89,8 @@ class VirtualTryOn:
 
                 # Save metadata
                 metadata = {
-                    "person_image": person_media_url,
-                    "garment_image": garment_media_url,
+                    "person_image": person_media_path,
+                    "garment_image": garment_media_path,
                     "output_image": output_path
                 }
                 self.save_metadata(metadata)
@@ -144,54 +144,54 @@ class VirtualTryOn:
             )
             raise e
 
-    def process_try_on_by_hf(self):
-        try:
-            # Fetch input images
-            person_media_url = self.image_manager_obj.fetch_latest_unused_image(
-                "person", get_url=False
-            )
-            garment_media_url = self.image_manager_obj.fetch_latest_unused_image(
-                "garment", get_url=False
-            )
-            person_img = cv2.imread(person_media_url)
-            garment_img = cv2.imread(garment_media_url)
-            encoded_person_img = cv2.imencode('.png', cv2.cvtColor(person_img, cv2.COLOR_RGB2BGR))[1].tobytes()
-            encoded_person_img = base64.b64encode(encoded_person_img).decode('utf-8')
-            encoded_garment_img = cv2.imencode('.png', cv2.cvtColor(garment_img, cv2.COLOR_RGB2BGR))[1].tobytes()
-            encoded_garment_img = base64.b64encode(encoded_garment_img).decode('utf-8')
-
-            data = {
-                "humanImage": encoded_person_img,
-                "clothImage": encoded_garment_img,
-                "seed": 0
-            }
-            headers = {
-                "Authorization": f"Bearer {TokensAndURLs.HUGGING_FACE_API_TOKEN.value}"
-            }
-
-            response = requests.post(
-                url=f"https://api-inference.huggingface.co/models/{TokensAndURLs.MODEL_NAME.value}/tryon/" + "Submit",
-                headers=headers,
-                data=json.dumps(data),
-                timeout=50
-            )
-            if response.status_code == 200:
-                result = response.json()['result']
-                media_url = response.json().get("media_url")
-                seed = response.json().get("seed")
-                print(result)
-                print("Media URL:", media_url)
-                print("Seed:", seed)
-                output_path = self.get_output_path()
-                image = requests.get(media_url)
-                with open(output_path, "wb") as output_file:
-                    output_file.write(image.content)
-                return output_path
-
-        except Exception as e:
-            logger.log(
-                level=logging.ERROR,
-                msg=f"Got an error while generating the output image. "
-                    f"User: {self.user_id} Error: [{e}]"
-            )
-            raise e
+    # def process_try_on_by_hf(self):
+    #     try:
+    #         # Fetch input images
+    #         person_media_url = self.image_manager_obj.fetch_latest_unused_image(
+    #             "person", get_url=False
+    #         )
+    #         garment_media_url = self.image_manager_obj.fetch_latest_unused_image(
+    #             "garment", get_url=False
+    #         )
+    #         person_img = cv2.imread(person_media_url)
+    #         garment_img = cv2.imread(garment_media_url)
+    #         encoded_person_img = cv2.imencode('.png', cv2.cvtColor(person_img, cv2.COLOR_RGB2BGR))[1].tobytes()
+    #         encoded_person_img = base64.b64encode(encoded_person_img).decode('utf-8')
+    #         encoded_garment_img = cv2.imencode('.png', cv2.cvtColor(garment_img, cv2.COLOR_RGB2BGR))[1].tobytes()
+    #         encoded_garment_img = base64.b64encode(encoded_garment_img).decode('utf-8')
+    #
+    #         data = {
+    #             "humanImage": encoded_person_img,
+    #             "clothImage": encoded_garment_img,
+    #             "seed": 0
+    #         }
+    #         headers = {
+    #             "Authorization": f"Bearer {TokensAndURLs.HUGGING_FACE_API_TOKEN.value}"
+    #         }
+    #
+    #         response = requests.post(
+    #             url=f"https://api-inference.huggingface.co/models/{TokensAndURLs.MODEL_NAME.value}/tryon/" + "Submit",
+    #             headers=headers,
+    #             data=json.dumps(data),
+    #             timeout=50
+    #         )
+    #         if response.status_code == 200:
+    #             result = response.json()['result']
+    #             media_url = response.json().get("media_url")
+    #             seed = response.json().get("seed")
+    #             print(result)
+    #             print("Media URL:", media_url)
+    #             print("Seed:", seed)
+    #             output_path = self.get_output_path()
+    #             image = requests.get(media_url)
+    #             with open(output_path, "wb") as output_file:
+    #                 output_file.write(image.content)
+    #             return output_path
+    #
+    #     except Exception as e:
+    #         logger.log(
+    #             level=logging.ERROR,
+    #             msg=f"Got an error while generating the output image. "
+    #                 f"User: {self.user_id} Error: [{e}]"
+    #         )
+    #         raise e

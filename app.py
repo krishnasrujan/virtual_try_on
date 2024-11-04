@@ -9,7 +9,7 @@ from twilio.twiml.messaging_response import MessagingResponse
 from constants import DirectoryPath, TokensAndURLs
 from image_handler import ImageManager
 from chat_history_manager import ChatHistoryManager
-from virtual_try_on import VirtualTryOn
+from merge_images import MergeImages
 
 
 logging.basicConfig(level=logging.INFO)
@@ -106,9 +106,9 @@ def webhook(
             output_response = "Please provide an image along with its type (garment or person) to use the virtual try-on service."
 
         if image_manager_obj.has_unused_image("garment") and image_manager_obj.has_unused_image("person"):
-            virtual_try_on_obj = VirtualTryOn(user_id=from_number)
+            merge_images_obj = MergeImages(user_id=from_number)
             # Both images are available, process the virtual try-on
-            file_path = virtual_try_on_obj.process_try_on()
+            file_path = merge_images_obj.merge_images()
             image_name = os.path.basename(file_path)
             media_url = f"{TokensAndURLs.BASE_URL.value}/get_image/{image_name}"
             output_response = "Here is the virtual try-on image!"
